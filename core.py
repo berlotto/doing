@@ -45,7 +45,7 @@ def usage():
 def main():
 	args = sys.argv[1:]
 
-	if args[0] == "-h" or args[0] == "--help":
+	if not args or args[0] == "-h" or args[0] == "--help":
 		usage()
 	else:
 		if not args[0] in commands.keys():

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- encoding: utf-8 -*-
 # Doing 
 # A simple timetracker
@@ -6,7 +5,24 @@
 # Author: Sérgio Berlotto Jr <sergio.berlotto@gmail.com>
 #
 
+import dataset
+import os
 from core import main, command
+from datetime import datetime
+from colorama import Fore, Back, Style
+
+def console_size():
+	rows, cols = os.popen("stty size","r").read().split()
+	return int(rows), int(cols)
+
+def message(text):
+	print(Style.BRIGHT + Fore.YELLOW + " -> " + Fore.GREEN + text + Fore.RESET)
+
+def separator():
+	print(Fore.BLUE + Style.BRIGHT + "-"*console_size()[1] + Style.RESET_ALL)
+
+db = dataset.connect('sqlite:///doing.db')
+table_tasks = db['tasks']
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = #
 # COMMANDS CONTROL
@@ -14,13 +30,37 @@ from core import main, command
 
 @command("start", help="Start new task, restart if paused, stop latest task if started")
 def start(name, *tags):
-	print("Command START")
-	print(name, tags)
+	
+	current_task = table_tasks.find_one(current=True)
+	if current_task:
+		current_task['stop'] = datetime.now()
+		current_task['current'] = False
+		table_tasks.update(current_task, ['id'])
+		print("Task '%s' stoped!" % current_task['name'])
+
+	if tags:
+		task_tags = tags
+	else:
+		task_tags = []
+	str_task_tags = ",".join(task_tags)
+	table_tasks.insert(dict(name=name,tags=str_task_tags,notes="",start=datetime.now(),stop=None,current=True))
+	message("New task '%s' added!" % name)
 
 @command("tag",help="Tag last/current entrie")
 def tag(*tags):
-	print("Command TAG")
-	print(tags)
+	current_task = table_tasks.find_one(current=True)
+	task_tags = current_task['tags']
+	
+	if task_tags:
+		task_tags = task_tags.split(",")
+	
+	for tag in tags:
+		task_tags.append(tag)
+	
+	current_task['tags'] = ",".join(task_tags)
+	table_tasks.update(current_task, ['id'])
+
+	message("Tag(s) '%s' added in current task !" % ",".join(tags) )
 
 @command("note",help="Add note to last/current task")
 def note(text):
